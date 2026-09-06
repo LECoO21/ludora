@@ -1,7 +1,6 @@
 import {
   Boxes,
   Cable,
-  CheckCircle2,
   ExternalLink,
   FileCode2,
   FileText,
@@ -14,7 +13,6 @@ import {
   Save,
   Settings2,
   SquareTerminal,
-  SunMoon,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
@@ -41,7 +39,7 @@ interface SettingsModalProps {
   onRuntime: (runtime: RuntimeStatus) => void;
 }
 
-type SettingsSection = 'account' | 'media' | 'defaults' | 'skills' | 'mcp' | 'prompts' | 'appearance';
+type SettingsSection = 'account' | 'media' | 'defaults' | 'skills' | 'mcp' | 'prompts';
 
 const SECTIONS = [
   { id: 'account', label: 'Codex 账户', detail: '登录与运行时', icon: KeyRound },
@@ -50,7 +48,6 @@ const SECTIONS = [
   { id: 'skills', label: 'Skills', detail: 'Agent 专业能力', icon: FileCode2 },
   { id: 'mcp', label: 'MCP Servers', detail: '工具与数据连接', icon: Cable },
   { id: 'prompts', label: '提示词', detail: '分角色模板', icon: FileText },
-  { id: 'appearance', label: '外观', detail: '深色与浅色', icon: SunMoon },
 ] as const;
 
 export function SettingsModal({
@@ -159,7 +156,7 @@ export function SettingsModal({
 
   return (
     <Modal
-      eyebrow="SYSTEM / CONTROL CENTER"
+      eyebrow="LUDORA / 工作空间"
       title="设置"
       description="配置 Agent 运行时、媒体服务、扩展能力和制作规范。"
       className="settings-modal"
@@ -167,7 +164,7 @@ export function SettingsModal({
       footer={
         <>
           <span className="settings-feedback" role="status">{message}</span>
-          {section === 'defaults' || section === 'appearance' ? (
+          {section === 'defaults' ? (
             <button className="primary-button" type="button" disabled={busy} onClick={() => void save()}>
               <Save size={15} /> {busy ? '保存中…' : '保存设置'}
             </button>
@@ -278,36 +275,6 @@ export function SettingsModal({
             />
           ) : null}
 
-          {section === 'appearance' ? (
-            <section>
-              <SettingsHeading
-                eyebrow="APPEARANCE"
-                title="界面主题"
-                description="功能颜色在两种主题下保持一致，颜色只用来表达状态。"
-              />
-              <div className="theme-choices" role="radiogroup" aria-label="界面主题">
-                {(['dark', 'light'] as const).map((theme) => (
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={draft.theme === theme}
-                    className={draft.theme === theme ? 'is-active' : ''}
-                    key={theme}
-                    onClick={() => setDraft((current) => ({ ...current, theme }))}
-                  >
-                    <span className={`theme-swatch theme-${theme}`} aria-hidden="true">
-                      <i /><i /><i />
-                    </span>
-                    <span>
-                      <strong>{theme === 'dark' ? '深色' : '浅色'}</strong>
-                      <small>{theme === 'dark' ? '适合长时间制作' : '适合明亮工作环境'}</small>
-                    </span>
-                    {draft.theme === theme ? <CheckCircle2 size={16} /> : null}
-                  </button>
-                ))}
-              </div>
-            </section>
-          ) : null}
         </div>
       </div>
     </Modal>

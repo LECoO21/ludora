@@ -195,11 +195,24 @@ export function Inspector({ project, refreshSignal, onError }: InspectorProps) {
           <span>PNG · JPEG · WEBP / 最多 50 张</span>
         </div>
       ) : null}
-      <div className="inspector-tabs" role="tablist" aria-label="项目检查器">
+      <div className="inspector-tabs" role="tablist" aria-label="项目检查器" onKeyDown={(event) => {
+        const tabs: InspectorTab[] = ['preview', 'assets', 'files'];
+        const index = tabs.indexOf(tab);
+        const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length
+          : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length
+            : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : null;
+        if (next === null) return;
+        event.preventDefault();
+        setTab(tabs[next]!);
+        event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+      }}>
         <button
           type="button"
           role="tab"
           aria-selected={tab === 'preview'}
+          tabIndex={tab === 'preview' ? 0 : -1}
+          id="inspector-tab-preview"
+          aria-controls="inspector-panel"
           className={tab === 'preview' ? 'is-active' : ''}
           onClick={() => setTab('preview')}
         >
@@ -209,6 +222,9 @@ export function Inspector({ project, refreshSignal, onError }: InspectorProps) {
           type="button"
           role="tab"
           aria-selected={tab === 'assets'}
+          tabIndex={tab === 'assets' ? 0 : -1}
+          id="inspector-tab-assets"
+          aria-controls="inspector-panel"
           className={tab === 'assets' ? 'is-active' : ''}
           onClick={() => setTab('assets')}
         >
@@ -219,6 +235,9 @@ export function Inspector({ project, refreshSignal, onError }: InspectorProps) {
           type="button"
           role="tab"
           aria-selected={tab === 'files'}
+          tabIndex={tab === 'files' ? 0 : -1}
+          id="inspector-tab-files"
+          aria-controls="inspector-panel"
           className={tab === 'files' ? 'is-active' : ''}
           onClick={() => setTab('files')}
         >
@@ -282,15 +301,18 @@ export function Inspector({ project, refreshSignal, onError }: InspectorProps) {
         </div>
       ) : null}
 
+      <div className="inspector-content" id="inspector-panel" role="tabpanel" aria-labelledby={`inspector-tab-${tab}`}>
       {tab === 'preview' ? (
         <div className="preview-pane">
           {payload.previewUrl ? (
+            <div className="preview-viewport">
             <iframe
               key={`${payload.previewUrl}:${previewRevision}`}
               src={`${payload.previewUrl}?noobi=${previewRevision}`}
               title={`${project.name} 游戏预览`}
               sandbox="allow-scripts allow-same-origin allow-pointer-lock"
             />
+            </div>
           ) : (
             <div className="preview-empty">
               <Eye size={28} />
@@ -373,6 +395,7 @@ export function Inspector({ project, refreshSignal, onError }: InspectorProps) {
           </section>
         </div>
       )}
+      </div>
     </aside>
   );
 }

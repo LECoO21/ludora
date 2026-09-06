@@ -8,6 +8,7 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
+  nativeTheme,
   safeStorage,
   shell,
   type IpcMainInvokeEvent,
@@ -136,6 +137,7 @@ app.on('before-quit', (event) => {
 });
 
 async function launch(): Promise<void> {
+  nativeTheme.themeSource = 'dark';
   if (!app.isPackaged && process.platform === 'darwin') {
     app.dock?.setIcon(join(app.getAppPath(), 'build', 'icon.png'));
   }
@@ -234,7 +236,7 @@ async function createWindow(): Promise<void> {
     height: 940,
     minWidth: 760,
     minHeight: 620,
-    backgroundColor: '#11120f',
+    backgroundColor: '#181b24',
     title: 'Ludora',
     show: false,
     webPreferences: {

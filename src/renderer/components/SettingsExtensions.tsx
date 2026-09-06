@@ -22,6 +22,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { toMessage } from '../ui';
+import { GameGlyph } from './GameGlyph';
 
 export type MediaCapability = 'image' | 'audio' | 'model3d';
 export type ConnectionStatus = 'unconfigured' | 'untested' | 'testing' | 'ready' | 'error';
@@ -945,7 +946,7 @@ export function PromptSettings({
       {selected ? (
         <div className="prompt-workspace">
           <nav aria-label="提示词模板">
-            {templates.map((item, index) => (
+            {templates.map((item) => (
               <button
                 type="button"
                 className={item.id === selected.id ? 'is-active' : ''}
@@ -954,7 +955,7 @@ export function PromptSettings({
                 aria-current={item.id === selected.id ? 'page' : undefined}
                 onClick={() => selectTemplate(item.id)}
               >
-                <span>{(index + 1).toString().padStart(2, '0')}</span>
+                <GameGlyph kind={item.id === 'planner' ? 'planner' : item.id === 'reviewer' ? 'reviewer' : 'developer'} />
                 <div><strong>{item.name}</strong><small>{promptRoleLabel(item.id)} · {item.enabled ? 'ON' : 'OFF'}</small></div>
                 <ChevronRight size={14} />
               </button>

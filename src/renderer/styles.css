@@ -23,54 +23,6 @@
   --mono: 'SFMono-Regular', 'IBM Plex Mono', 'Noto Sans Mono CJK SC', monospace;
 }
 
-:root[data-theme='light'] {
-  color-scheme: light;
-  --bg: #f3f4f6;
-  --panel: #fafafa;
-  --panel-raised: #ffffff;
-  --panel-hover: #eef0f3;
-  --line: #dde0e5;
-  --line-strong: #c7cbd2;
-  --text: #1e2025;
-  --text-soft: #4a4f59;
-  --muted: #676e79;
-  --faint: #858c97;
-  --accent: #286fdf;
-  --accent-soft: rgba(40, 111, 223, 0.09);
-  --accent-ink: #ffffff;
-  --green: #477e54;
-  --green-soft: rgba(71, 126, 84, 0.09);
-  --red: #b64f4f;
-  --red-soft: rgba(182, 79, 79, 0.09);
-  --blue: #3d70bb;
-  --shadow: rgba(24, 28, 35, 0.1);
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme]) {
-    color-scheme: light;
-    --bg: #f3f4f6;
-    --panel: #fafafa;
-    --panel-raised: #ffffff;
-    --panel-hover: #eef0f3;
-    --line: #dde0e5;
-    --line-strong: #c7cbd2;
-    --text: #1e2025;
-    --text-soft: #4a4f59;
-    --muted: #676e79;
-    --faint: #858c97;
-    --accent: #286fdf;
-    --accent-soft: rgba(40, 111, 223, 0.09);
-    --accent-ink: #ffffff;
-    --green: #477e54;
-    --green-soft: rgba(71, 126, 84, 0.09);
-    --red: #b64f4f;
-    --red-soft: rgba(182, 79, 79, 0.09);
-    --blue: #3d70bb;
-    --shadow: rgba(24, 28, 35, 0.1);
-  }
-}
-
 * {
   box-sizing: border-box;
 }
@@ -1286,11 +1238,6 @@ a {
   text-align: center;
 }
 
-:root[data-theme='light'] .preview-empty {
-  background: #deddd7;
-  color: #696b63;
-}
-
 .preview-empty strong {
   margin-top: 13px;
   color: var(--text-soft);
@@ -1835,11 +1782,9 @@ a {
 }
 
 .frame-rate-control.is-compact {
-  display: grid;
-  grid-template-columns: auto minmax(190px, 360px);
-  align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
+  display: block;
+  width: 100%;
+  padding: 10px;
 }
 
 .frame-rate-control.is-compact legend {
@@ -1847,31 +1792,32 @@ a {
 }
 
 .frame-rate-control.is-compact .frame-rate-options {
-  gap: 4px;
+  width: 100%;
+  margin-top: 6px;
+  gap: 6px;
 }
 
 .frame-rate-control.is-compact .frame-rate-options label {
-  display: flex;
-  min-height: 44px;
-  align-items: baseline;
-  justify-content: center;
-  gap: 3px;
+  display: grid;
+  min-height: 60px;
+  padding: 8px 4px;
+  gap: 4px;
 }
 
 .frame-rate-control.is-compact .frame-rate-options strong {
-  font-size: 12px;
+  font-size: 16px;
+}
+
+.frame-rate-control.is-compact .frame-rate-options span {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0;
 }
 
 .frame-rate-control:disabled,
 .frame-rate-control:disabled label {
   cursor: not-allowed;
   opacity: 0.58;
-}
-
-@media (max-width: 640px) {
-  .frame-rate-control.is-compact {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 .empty-workspace {
@@ -2503,80 +2449,18 @@ a {
   margin-top: 18px;
 }
 
-.theme-choices {
-  display: grid;
-  margin-top: 18px;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
-}
 
-.theme-choices > button {
-  display: grid;
-  min-height: 96px;
-  grid-template-columns: 70px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--muted);
-  padding: 12px;
-  text-align: left;
-}
 
-.theme-choices > button.is-active {
-  border-color: var(--accent);
-  color: var(--accent);
-}
 
-.theme-choices strong,
-.theme-choices small {
-  display: block;
-}
 
-.theme-choices strong {
-  color: var(--text);
-  font-size: 12px;
-}
 
-.theme-choices small {
-  margin-top: 5px;
-  color: var(--faint);
-  font-size: 10px;
-}
 
-.theme-swatch {
-  display: grid;
-  width: 70px;
-  height: 54px;
-  grid-template-columns: 17px 1fr;
-  grid-template-rows: 12px 1fr;
-  border: 1px solid var(--line-strong);
-}
 
-.theme-swatch i:first-child {
-  grid-row: 1 / -1;
-  background: #191a15;
-}
 
-.theme-swatch i:nth-child(2) {
-  background: #24251e;
-}
 
-.theme-swatch i:nth-child(3) {
-  background: #141510;
-}
 
-.theme-swatch.theme-light i:first-child {
-  background: #e3e1da;
-}
 
-.theme-swatch.theme-light i:nth-child(2) {
-  background: #f5f4ee;
-}
 
-.theme-swatch.theme-light i:nth-child(3) {
-  background: #ecebe5;
-}
 
 .settings-feedback {
   min-width: 0;
@@ -3685,10 +3569,6 @@ a {
   .runtime-card dl > div:last-child,
   .approval-meta > div:last-child {
     border-right: 0;
-  }
-
-  .theme-choices {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .approval-actions {

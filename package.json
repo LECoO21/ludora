@@ -21,6 +21,7 @@
     "smoke:media": "tsx scripts/media-smoke.ts",
     "smoke:image": "tsx scripts/image-smoke.ts",
     "smoke:ui": "npm run build && cross-env LUDORA_SMOKE_CAPTURE=.ludora-smoke/workbench.png electron .",
+    "smoke:reference": "npm run build:renderer && electron scripts/ui-reference-smoke.cjs",
     "verify": "npm run typecheck && npm run test && npm run build",
     "package:mac": "npm run build && electron-builder --mac dmg --publish never"
   },

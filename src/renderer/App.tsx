@@ -2,16 +2,15 @@ import {
   Ellipsis,
   FolderOpen,
   Menu,
-  Moon,
   Plus,
   Settings,
-  Sun,
   X,
 } from 'lucide-react';
 import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -29,12 +28,12 @@ import type {
 } from '../shared/contracts';
 import { ApprovalModal } from './components/ApprovalModal';
 import { BrandMark } from './components/BrandMark';
+import { GameGlyph } from './components/GameGlyph';
 import { Composer } from './components/Composer';
 import { EventStream } from './components/EventStream';
 import { HomeWorkspace, type QuickStartDraft } from './components/HomeWorkspace';
 import { Inspector } from './components/Inspector';
 import { NewProjectModal } from './components/NewProjectModal';
-import { Pipeline } from './components/Pipeline';
 import { ProjectRail } from './components/ProjectRail';
 import { SettingsModal } from './components/SettingsModal';
 import {
@@ -62,6 +61,27 @@ export function App() {
   const [error, setError] = useState('');
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [loadingError, setLoadingError] = useState('');
+  const moreMenu = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    const dismiss = (event: PointerEvent) => {
+      if (event.target instanceof Node && !moreMenu.current?.contains(event.target) && moreMenu.current) {
+        moreMenu.current.open = false;
+      }
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && moreMenu.current?.open) {
+        moreMenu.current.open = false;
+        moreMenu.current.querySelector('summary')?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', dismiss);
+    document.addEventListener('keydown', dismissOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', dismiss);
+      document.removeEventListener('keydown', dismissOnEscape);
+    };
+  }, []);
 
   const selected = useMemo(
     () => projects.find((project) => project.id === selectedId),
@@ -77,7 +97,7 @@ export function App() {
       const state = await window.noobi.bootstrap();
       setBootstrap(state);
       setProjects(state.projects);
-      setSettings(state.settings);
+      setSettings({ ...state.settings, theme: 'dark' });
       setRuntime(state.runtime);
       setEvents(state.events ?? {});
       setSelectedId((current) =>
@@ -132,13 +152,12 @@ export function App() {
   }, [loadBootstrap]);
 
   useEffect(() => {
-    if (!settings) return;
-    document.documentElement.dataset.theme = settings.theme;
-    document.documentElement.style.colorScheme = settings.theme;
+    document.documentElement.dataset.theme = 'dark';
+    document.documentElement.style.colorScheme = 'dark';
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', settings.theme === 'dark' ? '#101114' : '#f3f4f6');
-  }, [settings]);
+      ?.setAttribute('content', '#181b24');
+  }, []);
 
   async function createProject(input: CreateProjectInput) {
     const project = await window.noobi.createProject(input);
@@ -253,17 +272,6 @@ export function App() {
     }
   }
 
-  async function toggleTheme() {
-    if (!settings) return;
-    const theme = settings.theme === 'dark' ? 'light' : 'dark';
-    setSettings((current) => (current ? { ...current, theme } : current));
-    try {
-      setSettings(await window.noobi.saveSettings({ theme }));
-    } catch (reason) {
-      setError(toMessage(reason));
-    }
-  }
-
   async function resolveApproval(
     token: string,
     decision: ApprovalDecision,
@@ -322,6 +330,9 @@ export function App() {
 
       <main className="workspace">
         <header className="topbar">
+          <button className="topbar-brand" type="button" onClick={() => setSelectedId(undefined)} title="Ludora 首页">
+            <BrandMark /><strong>Ludora<span>GAME STUDIO</span></strong>
+          </button>
           <button
             className="icon-button mobile-menu"
             type="button"
@@ -330,13 +341,13 @@ export function App() {
           >
             <Menu size={18} />
           </button>
-          <button className="runtime-status" type="button" title={runtime.error ?? runtimeLabel(runtime)} onClick={() => setShowSettings(true)}>
-            <span className={`runtime-dot state-${runtime.state}`} />
-            <span>{runtimeLabel(runtime)}</span>
-          </button>
+          <nav className="workspace-switch" aria-label="工作区切换">
+            <button type="button" className={!selected ? 'is-active' : ''} aria-current={!selected ? 'page' : undefined} onClick={() => setSelectedId(undefined)}>创作首页</button>
+            <button type="button" className={selected ? 'is-active' : ''} aria-current={selected ? 'page' : undefined} disabled={!projects.length} onClick={() => setSelectedId(selected?.id ?? projects[0]?.id)}>游戏工作台</button>
+          </nav>
 
           <div className="topbar-project">
-            <strong>{selected?.name ?? 'Ludora'}</strong>
+            <strong>{selected?.name ?? '从灵感开始创造'}</strong>
             {selected ? (
               <span className={`status-chip status-${selected.status}`}>
                 {PROJECT_STATUS_LABELS[selected.status]}
@@ -345,6 +356,10 @@ export function App() {
           </div>
 
           <div className="topbar-actions">
+            <button className="runtime-status" type="button" title={runtime.error ?? runtimeLabel(runtime)} onClick={() => setShowSettings(true)}>
+              <span className={`runtime-dot state-${runtime.state}`} />
+              <span>{runtime.account ? '已连接' : '连接账户'}</span>
+            </button>
             <button
               className="icon-button"
               type="button"
@@ -354,11 +369,16 @@ export function App() {
             >
               <Settings size={15} />
             </button>
-            <details className="topbar-more">
+            <details className="topbar-more" ref={moreMenu}>
               <summary className="icon-button" aria-label="更多操作" title="更多操作">
                 <Ellipsis size={17} />
               </summary>
-              <div className="topbar-menu">
+              <div className="topbar-menu" onClick={(event) => {
+                if (event.target instanceof Element && event.target.closest('button:not(:disabled)') && moreMenu.current) {
+                  moreMenu.current.open = false;
+                  moreMenu.current.querySelector('summary')?.focus();
+                }
+              }}>
                 <button type="button" onClick={() => setShowCreate(true)}>
                   <Plus size={15} /> 高级创建项目
                 </button>
@@ -369,19 +389,30 @@ export function App() {
                 >
                   <FolderOpen size={15} /> 在 Finder 中打开
                 </button>
-                <button type="button" onClick={() => void toggleTheme()}>
-                  {settings.theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-                  {settings.theme === 'dark' ? '切换到浅色' : '切换到深色'}
-                </button>
               </div>
             </details>
+            <button className="account-avatar" type="button" aria-label="账户设置" title={runtime.account?.email ?? '账户设置'} onClick={() => setShowSettings(true)}>
+              <GameGlyph kind="user" />
+            </button>
           </div>
         </header>
 
         {selected ? (
           <div className="production-layout">
-            <section className="production-center">
-              <Pipeline stage={selected.stage} status={selected.status} />
+            <section className="production-main" aria-label="游戏制作画布">
+              <Inspector
+                project={selected}
+                refreshSignal={refreshSignal}
+                onError={setError}
+              />
+            </section>
+            <section className="production-center" aria-label="制作对话">
+              <header className="conversation-heading">
+                <div><span className="conversation-dot" /><strong>制作对话</strong></div>
+                <div className="team-avatars" aria-label="规划、开发与检查角色">
+                  <GameGlyph kind="planner" /><GameGlyph kind="developer" /><GameGlyph kind="reviewer" />
+                </div>
+              </header>
               <EventStream project={selected} events={events[selected.id] ?? []} />
               <Composer
                 project={selected}
@@ -397,11 +428,6 @@ export function App() {
                 onStop={stopProject}
               />
             </section>
-            <Inspector
-              project={selected}
-              refreshSignal={refreshSignal}
-              onError={setError}
-            />
           </div>
         ) : (
           <HomeWorkspace

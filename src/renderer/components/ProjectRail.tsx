@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 import type { ProjectRecord, RuntimeStatus } from '../../shared/contracts';
-import { BrandMark } from './BrandMark';
+import { GameGlyph, ProjectAvatar } from './GameGlyph';
 import {
   formatRelative,
   PROJECT_STATUS_LABELS,
@@ -53,13 +53,7 @@ export function ProjectRail({
       />
       <aside className={`project-rail ${open ? 'is-open' : ''}${collapsed ? ' is-collapsed' : ''}`}>
         <div className="rail-brand-row">
-          <button className="brand" type="button" title="Ludora 首页" onClick={onHome}>
-            <BrandMark />
-            <span className="brand-copy">
-              <strong>Ludora</strong>
-              <small>TURN IDEAS INTO PLAYABLE WORLDS</small>
-            </span>
-          </button>
+          <span className="rail-workspace-label">我的工作空间</span>
           <button
             className="icon-button rail-collapse"
             type="button"
@@ -79,6 +73,9 @@ export function ProjectRail({
           </button>
         </div>
 
+        <button className={`rail-home ${!selectedId ? 'is-active' : ''}`} type="button" aria-current={!selectedId ? 'page' : undefined} title="创作首页" onClick={onHome}>
+          <GameGlyph kind="castle" /><span>创作首页</span>
+        </button>
         <button className="new-project-button" type="button" title="新建游戏" onClick={onCreate}>
           <Plus size={16} />
           <span>新建游戏</span>
@@ -97,12 +94,10 @@ export function ProjectRail({
                 type="button"
                 title={`${project.name} · ${PROJECT_STATUS_LABELS[project.status]}`}
                 className={`project-item ${project.id === selectedId ? 'is-active' : ''}`}
+                aria-current={project.id === selectedId ? 'page' : undefined}
                 onClick={() => onSelect(project)}
               >
-                <span
-                  className={`status-dot status-${project.status}`}
-                  aria-hidden="true"
-                />
+                <ProjectAvatar name={project.name} />
                 <span className="project-item-copy">
                   <strong>{project.name}</strong>
                   <small>{PROJECT_STATUS_LABELS[project.status]}</small>
@@ -122,6 +117,7 @@ export function ProjectRail({
         </nav>
 
         <div className="rail-footer">
+          <div className="rail-studio-note"><GameGlyph kind="potion" /><strong>让灵感成为游戏</strong><span>一点想象，无限可能。</span></div>
           <button
             type="button"
             className="runtime-mini"

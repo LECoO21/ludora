@@ -12,6 +12,28 @@ afterEach(async () => {
 });
 
 describe('project infrastructure', () => {
+  it('migrates a legacy light preference to dark without changing projects or other settings', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'ludora-dark-theme-test-'));
+    roots.push(root);
+    const storageFile = join(root, 'projects.json');
+    const workspace = join(root, 'games');
+    const store = new ProjectStore(storageFile, workspace);
+    await store.create({ name: 'Keep My Game', idea: 'Preserve this project.', parentDirectory: workspace });
+    await store.saveSettings({ defaultModel: 'saved-model', defaultEffort: 'high' });
+    const legacy = JSON.parse(await readFile(storageFile, 'utf8'));
+    legacy.settings.theme = 'light';
+    await writeFile(storageFile, JSON.stringify(legacy));
+
+    const migratedStore = new ProjectStore(storageFile, workspace);
+    await expect(migratedStore.getSettings()).resolves.toEqual({ ...legacy.settings, theme: 'dark' });
+    const migrated = JSON.parse(await readFile(storageFile, 'utf8'));
+    expect(migrated).toEqual({ ...legacy, settings: { ...legacy.settings, theme: 'dark' } });
+    await migratedStore.saveSettings({ defaultEffort: 'medium' });
+    await expect(new ProjectStore(storageFile, workspace).getSettings()).resolves.toMatchObject({
+      theme: 'dark', defaultModel: 'saved-model', defaultEffort: 'medium',
+    });
+  });
+
   it('atomically reloads projects and rejects inspector traversal', async () => {
     const root = await mkdtemp(join(tmpdir(), 'noobi-store-test-'));
     roots.push(root);

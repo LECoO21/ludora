@@ -19,6 +19,8 @@ import {
   type TargetFrameRate,
 } from '../../shared/contracts';
 import { formatRelative, PROJECT_STATUS_LABELS, runtimeLabel } from '../ui';
+import { GameGlyph, ProjectAvatar } from './GameGlyph';
+import poster from '../../../assets/ludora-wait-poster.webp';
 
 export interface QuickStartDraft {
   idea: string;
@@ -117,6 +119,7 @@ export function HomeWorkspace({
 
   return (
     <section className="home-workspace">
+      <div className="home-main">
       <div className="home-intro">
         <span className="home-kicker"><Gamepad2 size={15} /> AI 游戏工作台</span>
         <h1>今天想做什么游戏？</h1>
@@ -150,7 +153,8 @@ export function HomeWorkspace({
               disabled={working}
               onClick={() => setDraft((current) => ({ ...current, idea: example }))}
             >
-              示例 {index + 1}
+              <GameGlyph kind={(['potion', 'castle', 'game'] as const)[index]!} />
+              {['星星收集', '横版冒险', '太空射击'][index]}
             </button>
           ))}
         </div>
@@ -254,7 +258,7 @@ export function HomeWorkspace({
           <div className="recent-project-list">
             {recentProjects.map((project) => (
               <button type="button" key={project.id} onClick={() => onOpenProject(project)}>
-                <span className={`recent-project-icon status-${project.status}`}><Gamepad2 size={17} /></span>
+                <ProjectAvatar name={project.name} />
                 <span className="recent-project-copy">
                   <strong>{project.name}</strong>
                   <small>{PROJECT_STATUS_LABELS[project.status]}</small>
@@ -271,6 +275,17 @@ export function HomeWorkspace({
           </div>
         )}
       </section>
+      </div>
+      <aside className="home-companion" aria-label="创作指南">
+        <div className="studio-art"><img src={poster} alt="Ludora 游戏世界宣传图" /><div><span>LUDORA STUDIO</span><strong>Turn ideas into<br />playable worlds.</strong></div></div>
+        <section className="creation-guide">
+          <header><strong>你的制作团队</strong><span>一起把想法做出来</span></header>
+          <div><GameGlyph kind="planner" /><p><strong>规划师</strong><span>理解创意，拆解玩法与制作计划</span></p></div>
+          <div><GameGlyph kind="developer" /><p><strong>开发者</strong><span>编写代码，搭建场景与游戏规则</span></p></div>
+          <div><GameGlyph kind="reviewer" /><p><strong>检查员</strong><span>检查结果，让游戏顺利运行</span></p></div>
+        </section>
+        <div className="home-workspace-note"><GameGlyph kind="chest" /><p><strong>你的作品，保存在本地</strong><span>项目文件与素材随时可以继续编辑。</span></p></div>
+      </aside>
     </section>
   );
 }

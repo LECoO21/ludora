@@ -245,7 +245,7 @@ export class ProjectStore {
     try {
       const source = await readFile(this.storageFile, 'utf8');
       const loaded = parsePersistedStore(source);
-      if (loaded.needsTargetFrameRateMigration) {
+      if (loaded.needsMigration) {
         await atomicWriteJson(this.storageFile, loaded.store);
       }
       this.#state = loaded.store;
@@ -529,7 +529,7 @@ function applyProjectPatch(current: ProjectRecord, patch: ProjectPatch): Project
 
 function parsePersistedStore(source: string): {
   store: PersistedProjectStore;
-  needsTargetFrameRateMigration: boolean;
+  needsMigration: boolean;
 } {
   let parsed: unknown;
   try {
@@ -552,7 +552,7 @@ function parsePersistedStore(source: string): {
       projects,
       settings: validateSettings(parsed.settings),
     },
-    needsTargetFrameRateMigration: parsed.projects.some(
+    needsMigration: (isRecord(parsed.settings) && parsed.settings.theme === 'light') || parsed.projects.some(
       (project) => isRecord(project) && project.targetFrameRate === undefined,
     ),
   };
@@ -625,7 +625,8 @@ function validateSettings(value: unknown): AppSettings {
     defaultWorkspace: resolve(value.defaultWorkspace),
     defaultModel: value.defaultModel === null ? null : value.defaultModel.trim(),
     defaultEffort: value.defaultEffort.trim(),
-    theme: value.theme,
+    // Accept legacy light preferences on disk, but the workbench is dark-only.
+    theme: 'dark',
   };
 }
 

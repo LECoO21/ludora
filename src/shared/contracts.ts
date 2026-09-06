@@ -107,7 +107,7 @@ export interface AppSettings {
   defaultWorkspace: string;
   defaultModel: string | null;
   defaultEffort: string;
-  theme: 'dark' | 'light';
+  theme: 'dark';
 }
 
 export interface BootstrapPayload {

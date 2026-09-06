@@ -1,36 +1,19 @@
 import {
-  AlertTriangle,
-  Bot,
-  Brain,
   ChevronDown,
   CircleDot,
-  FileCode2,
-  ListChecks,
-  ShieldCheck,
   Terminal,
-  UserRound,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import type { AgentEvent, ProjectRecord } from '../../shared/contracts';
 import { EVENT_KIND_LABELS } from '../ui';
+import { GameGlyph, type GlyphKind } from './GameGlyph';
+import { Pipeline } from './Pipeline';
 
 interface EventStreamProps {
   project: ProjectRecord;
   events: readonly AgentEvent[];
 }
-
-const EVENT_ICONS = {
-  user: UserRound,
-  lifecycle: CircleDot,
-  assistant: Bot,
-  thought: Brain,
-  tool: Terminal,
-  file: FileCode2,
-  plan: ListChecks,
-  approval: ShieldCheck,
-  error: AlertTriangle,
-} as const;
 
 export function EventStream({ project, events }: EventStreamProps) {
   const streamRef = useRef<HTMLDivElement>(null);
@@ -47,7 +30,7 @@ export function EventStream({ project, events }: EventStreamProps) {
       stream.scrollTop = stream.scrollHeight;
     });
     return () => cancelAnimationFrame(frame);
-  }, [events.length, events.at(-1)?.message, project.id]);
+  }, [events.length, events.at(-1)?.message, project.id, project.stage, project.status]);
 
   useEffect(() => {
     setShowTechnicalDetails(false);
@@ -95,7 +78,9 @@ export function EventStream({ project, events }: EventStreamProps) {
 
       <div className="event-list">
         {visibleEvents.map((event) => {
-          const Icon = EVENT_ICONS[event.kind];
+          const avatar: GlyphKind = event.kind === 'user' ? 'user'
+            : event.kind === 'plan' || event.stage === 'brief' || event.stage === 'gdd' ? 'planner'
+              : event.kind === 'approval' || event.stage === 'verify' ? 'reviewer' : 'developer';
           const isLong = event.message.length > 520;
           const isExpanded = expanded[event.id] === true;
           const technicalBody = event.kind === 'tool' || event.kind === 'file';
@@ -105,9 +90,7 @@ export function EventStream({ project, events }: EventStreamProps) {
               key={event.id}
             >
               <div className="event-rail" aria-hidden="true">
-                <span>
-                  <Icon size={14} />
-                </span>
+                <GameGlyph kind={avatar} />
               </div>
               <div className="event-card">
                 <header>
@@ -157,6 +140,8 @@ export function EventStream({ project, events }: EventStreamProps) {
           );
         })}
       </div>
+
+      <Pipeline key={project.id} stage={project.stage} status={project.status} />
 
       {project.status === 'running' ? (
         <div className="live-indicator">
