@@ -1,6 +1,8 @@
 import {
   FolderKanban,
   Gauge,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Settings,
   X,
@@ -11,7 +13,6 @@ import { BrandMark } from './BrandMark';
 import {
   formatRelative,
   PROJECT_STATUS_LABELS,
-  runtimeLabel,
 } from '../ui';
 
 interface ProjectRailProps {
@@ -19,7 +20,9 @@ interface ProjectRailProps {
   selectedId?: string;
   runtime: RuntimeStatus;
   open: boolean;
+  collapsed: boolean;
   onClose: () => void;
+  onToggleCollapsed: () => void;
   onHome: () => void;
   onSelect: (project: ProjectRecord) => void;
   onCreate: () => void;
@@ -31,7 +34,9 @@ export function ProjectRail({
   selectedId,
   runtime,
   open,
+  collapsed,
   onClose,
+  onToggleCollapsed,
   onHome,
   onSelect,
   onCreate,
@@ -46,14 +51,23 @@ export function ProjectRail({
         tabIndex={open ? 0 : -1}
         onClick={onClose}
       />
-      <aside className={`project-rail ${open ? 'is-open' : ''}`}>
+      <aside className={`project-rail ${open ? 'is-open' : ''}${collapsed ? ' is-collapsed' : ''}`}>
         <div className="rail-brand-row">
-          <button className="brand" type="button" onClick={onHome}>
+          <button className="brand" type="button" title="Ludora 首页" onClick={onHome}>
             <BrandMark />
             <span className="brand-copy">
               <strong>Ludora</strong>
               <small>TURN IDEAS INTO PLAYABLE WORLDS</small>
             </span>
+          </button>
+          <button
+            className="icon-button rail-collapse"
+            type="button"
+            aria-label={collapsed ? '展开项目栏' : '收起项目栏'}
+            title={collapsed ? '展开项目栏' : '收起项目栏'}
+            onClick={onToggleCollapsed}
+          >
+            {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
           </button>
           <button
             className="icon-button rail-close"
@@ -65,13 +79,13 @@ export function ProjectRail({
           </button>
         </div>
 
-        <button className="new-project-button" type="button" onClick={onCreate}>
+        <button className="new-project-button" type="button" title="新建游戏" onClick={onCreate}>
           <Plus size={16} />
-          新建游戏
+          <span>新建游戏</span>
         </button>
 
         <div className="rail-section-heading">
-          <span>PROJECTS</span>
+          <span>我的项目</span>
           <strong>{String(projects.length).padStart(2, '0')}</strong>
         </div>
 
@@ -81,6 +95,7 @@ export function ProjectRail({
               <button
                 key={project.id}
                 type="button"
+                title={`${project.name} · ${PROJECT_STATUS_LABELS[project.status]}`}
                 className={`project-item ${project.id === selectedId ? 'is-active' : ''}`}
                 onClick={() => onSelect(project)}
               >
@@ -114,14 +129,14 @@ export function ProjectRail({
           >
             <Gauge size={15} />
             <span>
-              <strong>{runtimeLabel(runtime)}</strong>
-              <small>{runtime.version ?? 'RUNTIME STATUS'}</small>
+              <strong>{runtime.account ? 'Codex 已连接' : runtime.state === 'ready' ? '登录 Codex' : '检查运行环境'}</strong>
+              <small>{runtime.account?.email ?? '开始制作前完成登录'}</small>
             </span>
             <i className={`runtime-dot state-${runtime.state}`} />
           </button>
-          <button className="rail-settings" type="button" onClick={onSettings}>
+          <button className="rail-settings" type="button" title="设置" onClick={onSettings}>
             <Settings size={15} />
-            设置
+            <span>设置</span>
           </button>
         </div>
       </aside>

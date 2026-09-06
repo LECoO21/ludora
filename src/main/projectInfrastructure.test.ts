@@ -98,7 +98,7 @@ describe('project infrastructure', () => {
     expect(migrated.projects[0]?.targetFrameRate).toBe(60);
   });
 
-  it('serves the playable starter on loopback without blocking the Electron iframe', async () => {
+  it('serves the static branded waiting preview without blocking the Electron iframe', async () => {
     const root = await mkdtemp(join(tmpdir(), 'noobi-preview-test-'));
     roots.push(root);
     const store = new ProjectStore(join(root, 'projects.json'), join(root, 'games'));
@@ -113,9 +113,16 @@ describe('project infrastructure', () => {
       const url = await preview.start(project.id, project.root);
       const response = await fetch(url);
       expect(response.status).toBe(200);
-      expect(await response.text()).toContain('<canvas');
+      const document = await response.text();
+      expect(document).toContain('<img');
+      expect(document).not.toContain('<video');
       expect(response.headers.get('x-frame-options')).toBeNull();
       expect(new URL(url).hostname).toBe('127.0.0.1');
+
+      const image = await fetch(new URL('/assets/ludora-wait-poster.webp', url));
+      expect(image.status).toBe(200);
+      expect(image.headers.get('content-type')).toBe('image/webp');
+      expect((await image.arrayBuffer()).byteLength).toBeGreaterThan(50_000);
     } finally {
       await preview.stopAll();
     }

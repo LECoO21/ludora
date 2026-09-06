@@ -35,6 +35,10 @@ const EVENT_ICONS = {
 export function EventStream({ project, events }: EventStreamProps) {
   const streamRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
+  const visibleEvents = showTechnicalDetails
+    ? events
+    : events.filter((event) => event.kind !== 'thought');
 
   useEffect(() => {
     const stream = streamRef.current;
@@ -45,19 +49,37 @@ export function EventStream({ project, events }: EventStreamProps) {
     return () => cancelAnimationFrame(frame);
   }, [events.length, events.at(-1)?.message, project.id]);
 
+  useEffect(() => {
+    setShowTechnicalDetails(false);
+    setExpanded({});
+  }, [project.id]);
+
   return (
     <div className="event-stream" ref={streamRef} aria-live="polite">
       <article className="brief-card">
-        <span className="eyebrow">01 / CREATIVE BRIEF</span>
+        <span className="eyebrow">游戏创意</span>
         <h2>{project.name}</h2>
         <p>{project.idea}</p>
-        <footer>
-          <span>{project.root}</span>
-          <time dateTime={project.createdAt}>
-            {new Date(project.createdAt).toLocaleString('zh-CN')}
-          </time>
-        </footer>
+        {showTechnicalDetails ? (
+          <footer>
+            <span>{project.root}</span>
+            <time dateTime={project.createdAt}>
+              {new Date(project.createdAt).toLocaleString('zh-CN')}
+            </time>
+          </footer>
+        ) : null}
       </article>
+
+      <div className="event-stream-toolbar">
+        <span>{events.length ? `${events.length} 条制作记录` : '制作记录'}</span>
+        <button
+          type="button"
+          aria-pressed={showTechnicalDetails}
+          onClick={() => setShowTechnicalDetails((current) => !current)}
+        >
+          <Terminal size={13} /> {showTechnicalDetails ? '隐藏详细日志' : '查看详细日志'}
+        </button>
+      </div>
 
       {events.length === 0 ? (
         <div className="stream-empty">
@@ -72,10 +94,11 @@ export function EventStream({ project, events }: EventStreamProps) {
       ) : null}
 
       <div className="event-list">
-        {events.map((event) => {
+        {visibleEvents.map((event) => {
           const Icon = EVENT_ICONS[event.kind];
           const isLong = event.message.length > 520;
           const isExpanded = expanded[event.id] === true;
+          const technicalBody = event.kind === 'tool' || event.kind === 'file';
           return (
             <article
               className={`event-row event-${event.kind} ${event.isDelta ? 'is-streaming' : ''}`}
@@ -98,16 +121,20 @@ export function EventStream({ project, events }: EventStreamProps) {
                     {new Date(event.timestamp).toLocaleTimeString('zh-CN', {
                       hour: '2-digit',
                       minute: '2-digit',
-                      second: '2-digit',
+                      second: showTechnicalDetails ? '2-digit' : undefined,
                       hour12: false,
                     })}
                   </time>
                 </header>
-                {event.method ? <code>{event.method}</code> : null}
-                <pre className={isLong && !isExpanded ? 'is-collapsed' : ''}>
-                  {event.message}
-                </pre>
-                {isLong ? (
+                {showTechnicalDetails && event.method ? <code>{event.method}</code> : null}
+                {!technicalBody || showTechnicalDetails ? (
+                  <pre className={isLong && !isExpanded ? 'is-collapsed' : ''}>
+                    {event.message}
+                  </pre>
+                ) : (
+                  <p className="event-technical-summary">技术详情已收起，可在详细日志中查看。</p>
+                )}
+                {isLong && (!technicalBody || showTechnicalDetails) ? (
                   <button
                     className="event-expand"
                     type="button"
@@ -134,7 +161,7 @@ export function EventStream({ project, events }: EventStreamProps) {
       {project.status === 'running' ? (
         <div className="live-indicator">
           <span className="pulse" />
-          CODEX TURN ACTIVE
+          Ludora 正在制作游戏
         </div>
       ) : null}
     </div>

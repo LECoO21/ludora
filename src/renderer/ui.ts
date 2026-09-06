@@ -51,6 +51,40 @@ export function stageProgress(stage: PipelineStage): number {
   return Math.max(0, order.indexOf(stage));
 }
 
+export function projectNameFromIdea(idea: string, now = new Date()): string {
+  const firstThought = idea
+    .trim()
+    .split(/\r?\n/u, 1)[0]
+    ?.split(/[。！？.!?]/u, 1)[0]
+    ?.replace(/^(?:请|麻烦)?(?:帮我)?(?:制作|做|创建|开发)(?:一个|一款)?/u, '')
+    .replace(/\s+/gu, ' ')
+    .trim();
+
+  if (firstThought) {
+    const characters = Array.from(firstThought);
+    let end = Math.min(24, characters.length);
+    while (
+      end < characters.length
+      && end < 32
+      && /[a-z0-9_-]/iu.test(characters[end - 1] ?? '')
+      && /[a-z0-9_-]/iu.test(characters[end] ?? '')
+    ) {
+      end += 1;
+    }
+    return characters.slice(0, end).join('');
+  }
+
+  const stamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+    '-',
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+  ].join('');
+  return `新游戏 ${stamp}`;
+}
+
 export function formatRelative(value: string): string {
   const time = Date.parse(value);
   if (!Number.isFinite(time)) return '—';

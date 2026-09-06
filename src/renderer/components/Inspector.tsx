@@ -230,10 +230,10 @@ export function Inspector({ project, refreshSignal, onError }: InspectorProps) {
       <div className="inspector-toolbar">
         <span>
           {tab === 'preview'
-            ? 'LOCAL GAME PREVIEW'
+            ? '游戏预览'
             : tab === 'assets'
-              ? 'GAME ASSET LIBRARY'
-              : 'PROJECT FILES'}
+              ? '游戏素材库'
+              : '项目文件'}
         </span>
         <div className="inspector-toolbar-actions">
           {tab === 'assets' ? (

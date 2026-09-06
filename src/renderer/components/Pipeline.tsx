@@ -1,86 +1,45 @@
-import {
-  Box,
-  Check,
-  Code2,
-  FileText,
-  Flag,
-  Image,
-  LayoutTemplate,
-  Map,
-} from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { CheckCircle2, CircleDot } from 'lucide-react';
 
 import {
   PIPELINE_STAGES,
   type PipelineStage,
   type ProjectStatus,
 } from '../../shared/contracts';
-import { stageProgress } from '../ui';
+import { PROJECT_STATUS_LABELS, stageProgress } from '../ui';
 
 interface PipelineProps {
   stage: PipelineStage;
   status: ProjectStatus;
 }
 
-const ICONS = {
-  brief: FileText,
-  scaffold: LayoutTemplate,
-  gdd: Box,
-  assets: Image,
-  world: Map,
-  code: Code2,
-  verify: Check,
-  complete: Flag,
-} as const;
-
 export function Pipeline({ stage, status }: PipelineProps) {
-  const progress = stageProgress(stage);
-  const listRef = useRef<HTMLOListElement>(null);
-
-  useEffect(() => {
-    const active = listRef.current?.querySelector<HTMLElement>(`[data-stage="${stage}"]`);
-    active?.scrollIntoView({
-      block: 'nearest',
-      inline: 'center',
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-    });
-  }, [stage]);
+  const index = stageProgress(stage);
+  const current = stage === 'complete' ? PIPELINE_STAGES.length : index + 1;
+  const stageLabel = PIPELINE_STAGES[index]?.label ?? '准备制作';
+  const percentage = Math.round((current / PIPELINE_STAGES.length) * 100);
+  const completed = status === 'completed' || stage === 'complete';
+  const StatusIcon = completed ? CheckCircle2 : CircleDot;
 
   return (
-    <section className="pipeline" aria-label="游戏制作流程">
-      <header className="section-heading pipeline-heading">
-        <div>
-          <span>PRODUCTION PIPELINE</span>
-          <strong>制作进度</strong>
-        </div>
-        <span className={`pipeline-live status-${status}`}>
-          {status === 'running' ? 'LIVE' : status.toUpperCase()}
+    <section className={`pipeline status-${status}`} aria-label="游戏制作进度">
+      <div className="pipeline-summary">
+        <span className="pipeline-state">
+          <StatusIcon size={14} />
+          <strong>{completed ? '游戏制作完成' : stageLabel}</strong>
+          <small>{PROJECT_STATUS_LABELS[status]}</small>
         </span>
-      </header>
-      <ol ref={listRef}>
-        {PIPELINE_STAGES.map((item, index) => {
-          const Icon = ICONS[item.id];
-          const done = index < progress || stage === 'complete';
-          const active = index === progress && stage !== 'complete';
-          return (
-            <li
-              key={item.id}
-              data-stage={item.id}
-              className={`${done ? 'is-done' : ''} ${active ? 'is-active' : ''}`}
-              aria-current={active ? 'step' : undefined}
-            >
-              <span className="pipeline-number">
-                {done ? <Check size={12} /> : String(index + 1).padStart(2, '0')}
-              </span>
-              <Icon size={15} />
-              <span>
-                <strong>{item.label}</strong>
-                <small>{item.short}</small>
-              </span>
-            </li>
-          );
-        })}
-      </ol>
+        <span className="pipeline-count">{current} / {PIPELINE_STAGES.length}</span>
+      </div>
+      <div
+        className="pipeline-track"
+        role="progressbar"
+        aria-label={`${stageLabel}，${current}/${PIPELINE_STAGES.length}`}
+        aria-valuemin={0}
+        aria-valuemax={PIPELINE_STAGES.length}
+        aria-valuenow={current}
+      >
+        <span style={{ width: `${percentage}%` }} />
+      </div>
     </section>
   );
 }

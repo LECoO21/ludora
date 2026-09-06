@@ -19,7 +19,7 @@ afterEach(async () => {
 });
 
 describe('createWorkspaceTemplate', () => {
-  it('creates a playable project with local Agent instructions', async () => {
+  it('creates a project with a branded waiting preview and local Agent instructions', async () => {
     const root = await mkdtemp(join(tmpdir(), 'noobi-template-'));
     temporaryRoots.push(root);
     await createWorkspaceTemplate(root, {
@@ -31,7 +31,16 @@ describe('createWorkspaceTemplate', () => {
       targetFrameRate: 120,
     });
 
-    await expect(readFile(join(root, 'index.html'), 'utf8')).resolves.toContain('<canvas');
+    const index = await readFile(join(root, 'index.html'), 'utf8');
+    expect(index).toContain('<img');
+    expect(index).toContain('id="waiting-image"');
+    expect(index).toContain('/assets/ludora-wait-poster.webp');
+    expect(index).not.toContain('<video');
+    expect(index).not.toContain('autoplay');
+    expect(index).not.toContain('ludora-wait-loop.mp4');
+    expect(
+      (await readFile(join(root, 'public/assets/ludora-wait-poster.webp'))).byteLength,
+    ).toBeGreaterThan(50_000);
     await expect(readFile(join(root, 'AGENTS.md'), 'utf8')).resolves.toContain(
       'small playable vertical slice',
     );
@@ -111,6 +120,10 @@ describe('createWorkspaceTemplate', () => {
     expectManagedMediaPolicy(skill);
 
     const design = await readFile(join(root, 'GAME_DESIGN.md'), 'utf8');
+    expect(design).toContain('## Temporary waiting preview');
+    expect(design).toContain('animation decision: `not-needed`');
+    expect(design).toContain('no video, playback, scaling, pulsing, or blinking');
+    expect(design).toContain('does not satisfy the generated-image acceptance gate');
     expect(design).toContain('private path/SHA attestation');
     expect(design).toContain('running game visibly renders it');
     expect(design).toContain('## Animation needs assessment');
@@ -133,10 +146,10 @@ describe('createWorkspaceTemplate', () => {
     expect(metadata.targetFrameRate).toBe(120);
 
     const starter = await readFile(join(root, 'src/main.js'), 'utf8');
-    expect(starter).toContain('const TARGET_FRAME_RATE = 120');
-    expect(starter).toContain('const FIXED_STEP_SECONDS = 1 / TARGET_FRAME_RATE');
-    expect(starter).toContain('const MAX_CATCH_UP_STEPS = 8');
-    expect(starter).toContain('state.accumulatorSeconds %= FIXED_STEP_SECONDS');
+    expect(starter).toContain("document.querySelector('#waiting-image')");
+    expect(starter).toContain('waitingImage.title = brief');
+    expect(starter).not.toContain('play()');
+    expect(starter).not.toContain('requestAnimationFrame');
   });
 
   it('atomically synchronizes authoritative FPS metadata and managed policy blocks without replacing user content', async () => {

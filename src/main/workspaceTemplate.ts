@@ -1,6 +1,7 @@
 import { constants } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import {
+  copyFile,
   lstat,
   mkdir,
   open,
@@ -10,6 +11,7 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { ProjectRecord } from '../shared/contracts.js';
 import { isTargetFrameRate } from '../shared/contracts.js';
 
@@ -33,6 +35,11 @@ const WRITE_EXCLUSIVE_NOFOLLOW = constants.O_CREAT
   | constants.O_EXCL
   | constants.O_WRONLY
   | (constants.O_NOFOLLOW ?? 0);
+const WAITING_PREVIEW_ASSETS = {
+  'public/assets/ludora-wait-poster.webp': fileURLToPath(
+    new URL('../../assets/ludora-wait-poster.webp', import.meta.url),
+  ),
+} as const;
 
 interface SafeWorkspaceFile {
   path: string;
@@ -58,6 +65,11 @@ export async function createWorkspaceTemplate(
     const target = resolveTemplatePath(root, relativePath);
     await mkdir(dirname(target), { recursive: true, mode: 0o755 });
     await writeFile(target, content, { encoding: 'utf8', flag: 'wx', mode: 0o644 });
+  }
+  for (const [relativePath, source] of Object.entries(WAITING_PREVIEW_ASSETS)) {
+    const target = resolveTemplatePath(root, relativePath);
+    await mkdir(dirname(target), { recursive: true, mode: 0o755 });
+    await copyFile(source, target, constants.COPYFILE_EXCL);
   }
 }
 
@@ -170,8 +182,28 @@ function workspaceFiles(project: WorkspaceProject): Record<string, string> {
   </head>
   <body>
     <main id="app" aria-label="${safeTitle}">
-      <canvas id="game" width="960" height="540"></canvas>
-      <p class="hint">WASD / 方向键移动 · 点击画面重新开始</p>
+      <section class="waiting-stage" aria-labelledby="waiting-title">
+        <img
+          id="waiting-image"
+          class="waiting-image"
+          src="/assets/ludora-wait-poster.webp"
+          alt="Ludora 游戏制作品牌宣传图"
+        />
+        <div class="waiting-shade" aria-hidden="true"></div>
+        <div class="waiting-copy">
+          <div class="waiting-status">
+            <span class="waiting-dot"></span>
+            <span>正在构建游戏世界</span>
+          </div>
+          <div class="waiting-heading">
+            <div>
+              <span class="project-name" data-project-name></span>
+              <h1 id="waiting-title">Turn ideas into playable worlds.</h1>
+            </div>
+          </div>
+        </div>
+      </section>
+      <p class="hint">Ludora 正在准备你的游戏 · 完成后预览会自动更新</p>
     </main>
     <script type="module" src="/src/main.js"></script>
   </body>
@@ -360,17 +392,27 @@ ${project.idea}
 
 Turn the brief into one sentence describing what the player gets to feel and do.
 
+## Temporary waiting preview
+
+- The untouched starter intentionally shows a static Ludora brand image instead of a placeholder mini-game.
+- Image: \`public/assets/ludora-wait-poster.webp\`.
+- Presentation: \`2d\`; animation decision: \`not-needed\`; the waiting surface is intentionally motionless, with no video, playback, scaling, pulsing, or blinking.
+- Production path: the image is rendered once through the native \`<img>\` element; \`src/main.js\` only applies the project name and accessible image title.
+- Target-FPS path: not applicable to this static waiting surface; the selected target still applies when the playable game is implemented.
+- This host-owned waiting media is not final game artwork and does not satisfy the generated-image acceptance gate.
+- Replace this waiting surface when the first playable vertical slice is ready.
+
 ## Core loop
 
-1. Move through the arena.
-2. Collect objectives while avoiding hazards.
-3. Reach the target score to win; touching a hazard ends the run.
-4. Restart immediately and improve the result.
+1. Define the main player action from the brief.
+2. Add one clear source of pressure or challenge.
+3. Show visible progress and a win or loss transition.
+4. Let the player restart immediately and improve the result.
 
 ## Controls
 
-- Move: WASD or arrow keys
-- Restart: click/tap the game after a win or loss
+- Waiting preview: no controls and no animation.
+- Final game: define keyboard, pointer, touch, pause, and restart controls during the first playable slice.
 
 ## Target frame rate
 
@@ -434,6 +476,10 @@ npm run build
 
 The production output is written to \`dist/\` and is preferred by the Ludora preview server.
 
+## Starter preview
+
+Before the playable game exists, Ludora displays the static brand image at \`public/assets/ludora-wait-poster.webp\`. It has no video or animation. This is a temporary host UI asset: replace the waiting surface during implementation, and do not count it as the final game's required generated image.
+
 ## Production requirements
 
 Every Ludora run includes an animation needs assessment with \`generate\`, \`reuse\`, or \`not-needed\`. Generate new 2D/2.5D keyframes through the configured image API with Codex ImageGen fallback only when existing animation assets are absent or incompatible; otherwise verify and reuse the existing frame set/sprite sheet. Actual rigged 3D characters use real GLB animation clips, with generated images limited to reference or billboard work. A justified not-needed assessment must still ship visible programmatic motion or gameplay feedback. The separate requirement to register and visibly use a qualifying host-generated image remains in force.
@@ -445,195 +491,20 @@ This project targets **${project.targetFrameRate} FPS**. Simulation and animatio
 function browserGameStarter(project: WorkspaceProject): string {
   const title = JSON.stringify(project.name);
   const idea = JSON.stringify(project.idea);
-  return `const canvas = document.querySelector('#game');
-const context = canvas.getContext('2d');
-const title = ${title};
+  return `const projectName = ${title};
 const brief = ${idea};
-const TARGET_FRAME_RATE = ${project.targetFrameRate};
-const FIXED_STEP_SECONDS = 1 / TARGET_FRAME_RATE;
-const PRESENTATION_INTERVAL_MS = 1000 / TARGET_FRAME_RATE;
-const MAX_CATCH_UP_STEPS = 8;
+const waitingImage = document.querySelector('#waiting-image');
+const projectNameElement = document.querySelector('[data-project-name]');
 
-const state = {
-  player: { x: 120, y: 270, radius: 18, speed: 260 },
-  goal: { x: 760, y: 270, radius: 13 },
-  hazards: [
-    { x: 410, y: 160, radius: 24, vx: 0, vy: 95 },
-    { x: 565, y: 390, radius: 28, vx: 110, vy: 0 },
-  ],
-  keys: new Set(),
-  score: 0,
-  targetScore: 5,
-  status: 'playing',
-  lastTime: performance.now(),
-  accumulatorSeconds: 0,
-  lastPresentedAt: 0,
-};
-
-const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
-const overlaps = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) < a.radius + b.radius;
-
-function reset() {
-  state.player.x = 120;
-  state.player.y = 270;
-  state.goal.x = 720 + Math.random() * 130;
-  state.goal.y = 90 + Math.random() * 360;
-  state.score = 0;
-  state.status = 'playing';
-  state.lastTime = performance.now();
-  state.accumulatorSeconds = 0;
-  state.lastPresentedAt = 0;
-}
-
-function update(deltaSeconds) {
-  if (state.status !== 'playing') return;
-  const left = state.keys.has('ArrowLeft') || state.keys.has('KeyA');
-  const right = state.keys.has('ArrowRight') || state.keys.has('KeyD');
-  const up = state.keys.has('ArrowUp') || state.keys.has('KeyW');
-  const down = state.keys.has('ArrowDown') || state.keys.has('KeyS');
-  const horizontal = Number(right) - Number(left);
-  const vertical = Number(down) - Number(up);
-  const magnitude = Math.hypot(horizontal, vertical) || 1;
-  state.player.x = clamp(
-    state.player.x + (horizontal / magnitude) * state.player.speed * deltaSeconds,
-    state.player.radius,
-    canvas.width - state.player.radius,
-  );
-  state.player.y = clamp(
-    state.player.y + (vertical / magnitude) * state.player.speed * deltaSeconds,
-    state.player.radius,
-    canvas.height - state.player.radius,
-  );
-
-  for (const hazard of state.hazards) {
-    hazard.x += hazard.vx * deltaSeconds;
-    hazard.y += hazard.vy * deltaSeconds;
-    if (hazard.x < 80 || hazard.x > canvas.width - 80) hazard.vx *= -1;
-    if (hazard.y < 80 || hazard.y > canvas.height - 80) hazard.vy *= -1;
-    if (overlaps(state.player, hazard)) state.status = 'lost';
-  }
-
-  if (overlaps(state.player, state.goal)) {
-    state.score += 1;
-    if (state.score >= state.targetScore) {
-      state.status = 'won';
-    } else {
-      state.goal.x = 120 + Math.random() * 720;
-      state.goal.y = 90 + Math.random() * 360;
-    }
-  }
-}
-
-function draw() {
-  const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, '#171b2d');
-  gradient.addColorStop(1, '#0b0d14');
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, canvas.width, canvas.height);
-
-  context.strokeStyle = 'rgba(255, 255, 255, 0.07)';
-  context.lineWidth = 1;
-  for (let x = 0; x <= canvas.width; x += 48) {
-    context.beginPath();
-    context.moveTo(x, 0);
-    context.lineTo(x, canvas.height);
-    context.stroke();
-  }
-  for (let y = 0; y <= canvas.height; y += 48) {
-    context.beginPath();
-    context.moveTo(0, y);
-    context.lineTo(canvas.width, y);
-    context.stroke();
-  }
-
-  context.shadowBlur = 24;
-  context.shadowColor = '#75f0b2';
-  context.fillStyle = '#75f0b2';
-  context.beginPath();
-  context.arc(state.goal.x, state.goal.y, state.goal.radius, 0, Math.PI * 2);
-  context.fill();
-
-  context.shadowColor = '#ff706d';
-  context.fillStyle = '#ff706d';
-  for (const hazard of state.hazards) {
-    context.beginPath();
-    context.arc(hazard.x, hazard.y, hazard.radius, 0, Math.PI * 2);
-    context.fill();
-  }
-
-  context.shadowColor = '#82aaff';
-  context.fillStyle = '#82aaff';
-  context.beginPath();
-  context.arc(state.player.x, state.player.y, state.player.radius, 0, Math.PI * 2);
-  context.fill();
-  context.shadowBlur = 0;
-
-  context.fillStyle = '#f4f5f7';
-  context.font = '600 22px system-ui, sans-serif';
-  context.fillText(title, 28, 42);
-  context.fillStyle = '#aeb5c5';
-  context.font = '15px system-ui, sans-serif';
-  context.fillText('收集绿色光点，避开红色障碍', 28, 67);
-  context.textAlign = 'right';
-  context.fillStyle = '#f4f5f7';
-  context.font = '600 18px system-ui, sans-serif';
-  context.fillText(\`SCORE  \${state.score} / \${state.targetScore}\`, canvas.width - 28, 42);
-  context.textAlign = 'left';
-
-  if (state.status !== 'playing') {
-    context.fillStyle = 'rgba(5, 7, 12, 0.76)';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.textAlign = 'center';
-    context.fillStyle = state.status === 'won' ? '#75f0b2' : '#ff817e';
-    context.font = '700 56px system-ui, sans-serif';
-    context.fillText(state.status === 'won' ? 'YOU WIN' : 'TRY AGAIN', canvas.width / 2, 245);
-    context.fillStyle = '#f4f5f7';
-    context.font = '18px system-ui, sans-serif';
-    context.fillText('点击画面重新开始', canvas.width / 2, 292);
-    context.textAlign = 'left';
-  }
-}
-
-function frame(now) {
-  const elapsedSeconds = Math.min(Math.max((now - state.lastTime) / 1000, 0), 0.1);
-  state.lastTime = now;
-  state.accumulatorSeconds += elapsedSeconds;
-
-  let catchUpSteps = 0;
-  while (state.accumulatorSeconds + Number.EPSILON >= FIXED_STEP_SECONDS && catchUpSteps < MAX_CATCH_UP_STEPS) {
-    update(FIXED_STEP_SECONDS);
-    state.accumulatorSeconds -= FIXED_STEP_SECONDS;
-    catchUpSteps += 1;
-  }
-  if (catchUpSteps === MAX_CATCH_UP_STEPS && state.accumulatorSeconds >= FIXED_STEP_SECONDS) {
-    state.accumulatorSeconds %= FIXED_STEP_SECONDS;
-  }
-
-  const sincePresentation = now - state.lastPresentedAt;
-  if (sincePresentation + 0.25 >= PRESENTATION_INTERVAL_MS) {
-    draw();
-    state.lastPresentedAt = now - (sincePresentation % PRESENTATION_INTERVAL_MS);
-  }
-  requestAnimationFrame(frame);
-}
-
-window.addEventListener('keydown', (event) => {
-  if (event.code.startsWith('Arrow')) event.preventDefault();
-  state.keys.add(event.code);
-});
-window.addEventListener('keyup', (event) => state.keys.delete(event.code));
-canvas.addEventListener('pointerdown', () => {
-  if (state.status !== 'playing') reset();
-});
-canvas.title = brief;
-requestAnimationFrame(frame);
+projectNameElement.textContent = projectName;
+waitingImage.title = brief;
 `;
 }
 
 function starterStyles(): string {
   return `:root {
-  color: #f4f5f7;
-  background: #080a0f;
+  color: #f7f8ff;
+  background: #050610;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
 }
@@ -653,8 +524,8 @@ body {
   place-items: center;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 15%, rgba(82, 102, 172, 0.25), transparent 42%),
-    #080a0f;
+    radial-gradient(circle at 50% 12%, rgba(62, 92, 208, 0.22), transparent 44%),
+    #050610;
 }
 
 #app {
@@ -663,22 +534,109 @@ body {
   text-align: center;
 }
 
-#game {
-  display: block;
+.waiting-stage {
+  position: relative;
   width: 100%;
-  height: auto;
   aspect-ratio: 16 / 9;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.45);
-  touch-action: none;
+  overflow: hidden;
+  border: 1px solid rgba(142, 166, 255, 0.2);
+  border-radius: 20px;
+  background: #080a18;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.48);
+}
+
+.waiting-image,
+.waiting-shade,
+.waiting-copy {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.waiting-image {
+  object-fit: cover;
+  z-index: 0;
+}
+
+.waiting-shade {
+  z-index: 2;
+  background:
+    linear-gradient(180deg, rgba(3, 5, 16, 0.38), transparent 34%),
+    linear-gradient(0deg, rgba(3, 5, 16, 0.82), transparent 48%),
+    linear-gradient(90deg, rgba(3, 5, 16, 0.24), transparent 48%);
+}
+
+.waiting-copy {
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(18px, 3vw, 34px);
+  text-align: left;
+}
+
+.waiting-status {
+  display: inline-flex;
+  width: max-content;
+  min-height: 32px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(4, 7, 24, 0.58);
+  padding: 0 13px;
+  color: rgba(245, 247, 255, 0.82);
+  font-size: clamp(10px, 1.3vw, 13px);
+  backdrop-filter: blur(10px);
+}
+
+.waiting-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #68d8ff;
+  box-shadow: 0 0 14px #4ca6ff;
+}
+
+.waiting-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.project-name {
+  display: block;
+  margin-bottom: 8px;
+  color: #87dfff;
+  font-size: clamp(11px, 1.4vw, 15px);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.waiting-heading h1 {
+  max-width: 720px;
+  margin: 0;
+  font-size: clamp(24px, 4.8vw, 58px);
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  text-shadow: 0 3px 24px rgba(0, 0, 0, 0.46);
 }
 
 .hint {
   margin: 14px 0 0;
-  color: #8e96a8;
+  color: #8f96aa;
   font-size: 13px;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 560px) {
+  #app { padding: 12px; }
+  .waiting-stage { border-radius: 14px; }
+  .waiting-heading { gap: 10px; }
+  .hint { font-size: 11px; }
 }
 `;
 }

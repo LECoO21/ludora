@@ -54,6 +54,7 @@
     ],
     "files": [
       "dist/**/*",
+      "assets/**/*",
       "package.json",
       "node_modules/@openai/codex/**/*",
       "node_modules/@openai/codex-*/*"

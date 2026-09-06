@@ -1,4 +1,10 @@
-import { Play, RotateCcw, Square, WandSparkles } from 'lucide-react';
+import {
+  ChevronDown,
+  Play,
+  RotateCcw,
+  SlidersHorizontal,
+  Square,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import type {
@@ -82,17 +88,6 @@ export function Composer({
 
   return (
     <section className="composer">
-      <header>
-        <div>
-          <WandSparkles size={14} />
-          <strong>{resumable ? '继续制作' : '开始制作'}</strong>
-        </div>
-        <span>
-          {project.threadId
-            ? `THREAD ${project.threadId.slice(0, 10).toUpperCase()}`
-            : 'NEW CODEX THREAD'}
-        </span>
-      </header>
       <div className="composer-body">
         <textarea
           value={prompt}
@@ -117,51 +112,59 @@ export function Composer({
             }
           }}
         />
-        <AssetRequirement
-          variant="compact"
-          imageGenerationAvailable={imageGenerationAvailable}
-        />
-        <FrameRateControl
-          compact
-          value={targetFrameRate}
-          disabled={running || disabled}
-          onChange={setTargetFrameRate}
-        />
-        <div className="composer-controls">
-          <label>
-            <span>MODEL</span>
-            <select
-              value={activeModel?.model ?? ''}
-              disabled={running || disabled || models.length === 0}
-              onChange={(event) => setModel(event.target.value)}
-            >
-              {models.length === 0 ? <option value="">暂无可用模型</option> : null}
-              {models.map((item) => (
-                <option value={item.model} key={item.id}>
-                  {item.displayName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>REASONING</span>
-            <select
-              value={effort}
-              disabled={running || disabled || !activeModel}
-              onChange={(event) => setEffort(event.target.value)}
-            >
-              {(activeModel?.efforts ?? [settings.defaultEffort]).map((item) => (
-                <option value={item} key={item}>
-                  {item.toUpperCase()}
-                </option>
-              ))}
-            </select>
-          </label>
-          <span className="composer-model-note">
-            {activeModel?.description ?? '登录 Codex 后读取模型目录'}
-          </span>
-          <span className="composer-shortcut">⌘/CTRL + ENTER</span>
-        </div>
+        <details className="composer-advanced">
+          <summary>
+            <span><SlidersHorizontal size={13} /> 高级设置</span>
+            <span className="composer-shortcut">⌘/CTRL + ENTER</span>
+            <ChevronDown className="composer-advanced-chevron" size={14} />
+          </summary>
+          <div className="composer-advanced-content">
+            <AssetRequirement
+              variant="compact"
+              imageGenerationAvailable={imageGenerationAvailable}
+            />
+            <FrameRateControl
+              compact
+              value={targetFrameRate}
+              disabled={running || disabled}
+              onChange={setTargetFrameRate}
+            />
+            <div className="composer-controls">
+              <label>
+                <span>模型</span>
+                <select
+                  value={activeModel?.model ?? ''}
+                  disabled={running || disabled || models.length === 0}
+                  onChange={(event) => setModel(event.target.value)}
+                >
+                  {models.length === 0 ? <option value="">暂无可用模型</option> : null}
+                  {models.map((item) => (
+                    <option value={item.model} key={item.id}>
+                      {item.displayName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>推理强度</span>
+                <select
+                  value={effort}
+                  disabled={running || disabled || !activeModel}
+                  onChange={(event) => setEffort(event.target.value)}
+                >
+                  {(activeModel?.efforts ?? [settings.defaultEffort]).map((item) => (
+                    <option value={item} key={item}>
+                      {item.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <span className="composer-model-note">
+                {activeModel?.description ?? '登录 Codex 后读取模型目录'}
+              </span>
+            </div>
+          </div>
+        </details>
       </div>
       {running ? (
         <button className="stop-button" type="button" onClick={() => void onStop()}>
@@ -176,7 +179,7 @@ export function Composer({
           onClick={() => void submit()}
         >
           {resumable ? <RotateCcw size={15} /> : <Play size={15} fill="currentColor" />}
-          {resumable ? '继续执行' : '启动 Agent'}
+          {resumable ? '继续制作' : '开始制作'}
         </button>
       )}
     </section>

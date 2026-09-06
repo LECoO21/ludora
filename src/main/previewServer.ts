@@ -280,20 +280,33 @@ async function handleRequest(
     return;
   }
 
-  await new Promise<void>((resolvePromise) => {
-    const stream = handle.createReadStream({ autoClose: true, start, end });
-    stream.once('error', () => {
-      if (!response.headersSent) sendError(response, 500, 'Unable to read preview asset');
-      else response.destroy();
-      resolvePromise();
+  try {
+    await new Promise<void>((resolvePromise) => {
+      let settled = false;
+      const settle = (): void => {
+        if (settled) return;
+        settled = true;
+        resolvePromise();
+      };
+      const stream = handle.createReadStream({ autoClose: false, start, end });
+      stream.once('error', () => {
+        if (!response.headersSent) sendError(response, 500, 'Unable to read preview asset');
+        else response.destroy();
+        settle();
+      });
+      response.once('close', () => {
+        stream.destroy();
+        settle();
+      });
+      response.once('finish', () => {
+        stream.destroy();
+        settle();
+      });
+      stream.pipe(response);
     });
-    response.once('close', () => {
-      stream.destroy();
-      resolvePromise();
-    });
-    response.once('finish', resolvePromise);
-    stream.pipe(response);
-  });
+  } finally {
+    await handle.close().catch(() => undefined);
+  }
 }
 
 interface SelectedContentRoot {

@@ -1,10 +1,10 @@
 import {
-  ArrowRight,
+  Ellipsis,
   FolderOpen,
   Menu,
   Moon,
+  Plus,
   Settings,
-  Sparkles,
   Sun,
   X,
 } from 'lucide-react';
@@ -31,12 +31,18 @@ import { ApprovalModal } from './components/ApprovalModal';
 import { BrandMark } from './components/BrandMark';
 import { Composer } from './components/Composer';
 import { EventStream } from './components/EventStream';
+import { HomeWorkspace, type QuickStartDraft } from './components/HomeWorkspace';
 import { Inspector } from './components/Inspector';
 import { NewProjectModal } from './components/NewProjectModal';
 import { Pipeline } from './components/Pipeline';
 import { ProjectRail } from './components/ProjectRail';
 import { SettingsModal } from './components/SettingsModal';
-import { PROJECT_STATUS_LABELS, runtimeLabel, toMessage } from './ui';
+import {
+  PROJECT_STATUS_LABELS,
+  projectNameFromIdea,
+  runtimeLabel,
+  toMessage,
+} from './ui';
 
 type EventMap = Record<string, AgentEvent[]>;
 
@@ -51,6 +57,8 @@ export function App() {
   const [showCreate, setShowCreate] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
+  const [railCollapsed, setRailCollapsed] = useState(false);
+  const [homeBusy, setHomeBusy] = useState<'idle' | 'creating' | 'starting'>('idle');
   const [error, setError] = useState('');
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [loadingError, setLoadingError] = useState('');
@@ -75,7 +83,7 @@ export function App() {
       setSelectedId((current) =>
         current && state.projects.some((project) => project.id === current)
           ? current
-          : state.projects[0]?.id,
+          : undefined,
       );
     } catch (reason) {
       setLoadingError(toMessage(reason));
@@ -129,7 +137,7 @@ export function App() {
     document.documentElement.style.colorScheme = settings.theme;
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', settings.theme === 'dark' ? '#151611' : '#f2f1eb');
+      ?.setAttribute('content', settings.theme === 'dark' ? '#101114' : '#f3f4f6');
   }, [settings]);
 
   async function createProject(input: CreateProjectInput) {
@@ -138,6 +146,71 @@ export function App() {
     setSelectedId(project.id);
     setShowCreate(false);
     setRailOpen(false);
+  }
+
+  async function startFromHome(draft: QuickStartDraft) {
+    if (!runtime) return;
+    setError('');
+    if (runtime.state !== 'ready') {
+      setError('Codex App Server 尚未就绪，请先检查运行环境。');
+      setShowSettings(true);
+      return;
+    }
+    if (!runtime.account) {
+      setError('请先登录 Codex，再开始制作游戏。');
+      setShowSettings(true);
+      return;
+    }
+    if (!imageGenerationAvailable) {
+      setError('图片能力尚不可用，请先启用 Codex ImageGen 或配置图片服务。');
+      setShowSettings(true);
+      return;
+    }
+
+    setHomeBusy('creating');
+    try {
+      const idea = draft.idea.trim();
+      const project = await window.noobi.createProject({
+        name: draft.name.trim() || projectNameFromIdea(idea),
+        idea,
+        parentDirectory: draft.parentDirectory.trim(),
+        model: draft.model,
+        targetFrameRate: draft.targetFrameRate,
+      });
+      setProjects((current) => upsertProject(current, project));
+      setSelectedId(project.id);
+      setRailOpen(false);
+
+      setHomeBusy('starting');
+      await runProjectById(
+        project.id,
+        idea,
+        draft.model,
+        draft.effort,
+        draft.targetFrameRate,
+      );
+    } catch (reason) {
+      setError(toMessage(reason));
+    } finally {
+      setHomeBusy('idle');
+    }
+  }
+
+  async function runProjectById(
+    projectId: string,
+    prompt: string,
+    model: string | null,
+    effort: string | null,
+    targetFrameRate: TargetFrameRate,
+  ) {
+    const project = await window.noobi.runProject({
+      projectId,
+      prompt,
+      model,
+      effort,
+      targetFrameRate,
+    });
+    setProjects((current) => upsertProject(current, project));
   }
 
   async function runProject(
@@ -164,14 +237,7 @@ export function App() {
       return;
     }
     try {
-      const project = await window.noobi.runProject({
-        projectId: selected.id,
-        prompt,
-        model,
-        effort,
-        targetFrameRate,
-      });
-      setProjects((current) => upsertProject(current, project));
+      await runProjectById(selected.id, prompt, model, effort, targetFrameRate);
     } catch (reason) {
       setError(toMessage(reason));
     }
@@ -236,7 +302,9 @@ export function App() {
         selectedId={selectedId}
         runtime={runtime}
         open={railOpen}
+        collapsed={railCollapsed}
         onClose={() => setRailOpen(false)}
+        onToggleCollapsed={() => setRailCollapsed((current) => !current)}
         onHome={() => {
           setSelectedId(undefined);
           setRailOpen(false);
@@ -245,7 +313,10 @@ export function App() {
           setSelectedId(project.id);
           setRailOpen(false);
         }}
-        onCreate={() => setShowCreate(true)}
+        onCreate={() => {
+          setSelectedId(undefined);
+          setRailOpen(false);
+        }}
         onSettings={() => setShowSettings(true)}
       />
 
@@ -259,18 +330,13 @@ export function App() {
           >
             <Menu size={18} />
           </button>
-          <button
-            className="runtime-status"
-            type="button"
-            title={runtime.error ?? runtimeLabel(runtime)}
-            onClick={() => setShowSettings(true)}
-          >
+          <button className="runtime-status" type="button" title={runtime.error ?? runtimeLabel(runtime)} onClick={() => setShowSettings(true)}>
             <span className={`runtime-dot state-${runtime.state}`} />
             <span>{runtimeLabel(runtime)}</span>
           </button>
 
           <div className="topbar-project">
-            <strong>{selected?.name ?? 'Ludora Workspace'}</strong>
+            <strong>{selected?.name ?? 'Ludora'}</strong>
             {selected ? (
               <span className={`status-chip status-${selected.status}`}>
                 {PROJECT_STATUS_LABELS[selected.status]}
@@ -282,31 +348,33 @@ export function App() {
             <button
               className="icon-button"
               type="button"
-              aria-label="在 Finder 中打开项目"
-              title="在 Finder 中打开项目"
-              disabled={!selected}
-              onClick={() => selected && void window.noobi.revealProject(selected.id)}
-            >
-              <FolderOpen size={15} />
-            </button>
-            <button
-              className="icon-button"
-              type="button"
-              aria-label="切换主题"
-              title="切换主题"
-              onClick={() => void toggleTheme()}
-            >
-              {settings.theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-            </button>
-            <button
-              className="icon-button"
-              type="button"
               aria-label="打开设置"
               title="打开设置"
               onClick={() => setShowSettings(true)}
             >
               <Settings size={15} />
             </button>
+            <details className="topbar-more">
+              <summary className="icon-button" aria-label="更多操作" title="更多操作">
+                <Ellipsis size={17} />
+              </summary>
+              <div className="topbar-menu">
+                <button type="button" onClick={() => setShowCreate(true)}>
+                  <Plus size={15} /> 高级创建项目
+                </button>
+                <button
+                  type="button"
+                  disabled={!selected}
+                  onClick={() => selected && void window.noobi.revealProject(selected.id)}
+                >
+                  <FolderOpen size={15} /> 在 Finder 中打开
+                </button>
+                <button type="button" onClick={() => void toggleTheme()}>
+                  {settings.theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+                  {settings.theme === 'dark' ? '切换到浅色' : '切换到深色'}
+                </button>
+              </div>
+            </details>
           </div>
         </header>
 
@@ -336,10 +404,16 @@ export function App() {
             />
           </div>
         ) : (
-          <EmptyWorkspace
+          <HomeWorkspace
+            projects={projects}
+            settings={settings}
             runtime={runtime}
-            projectCount={projects.length}
-            onCreate={() => setShowCreate(true)}
+            imageGenerationAvailable={imageGenerationAvailable}
+            busy={homeBusy}
+            onOpenProject={(project) => setSelectedId(project.id)}
+            onOpenSettings={() => setShowSettings(true)}
+            onChooseDirectory={() => window.noobi.chooseDirectory()}
+            onStart={startFromHome}
           />
         )}
       </main>
@@ -383,38 +457,6 @@ export function App() {
         </div>
       ) : null}
     </div>
-  );
-}
-
-function EmptyWorkspace({
-  runtime,
-  projectCount,
-  onCreate,
-}: {
-  runtime: RuntimeStatus;
-  projectCount: number;
-  onCreate: () => void;
-}) {
-  return (
-    <section className="empty-workspace">
-      <div className="empty-sequence" aria-hidden="true">
-        <span>IDEA</span><i /><span>BUILD</span><i /><span>PLAY</span>
-      </div>
-      <span className="eyebrow">ONE PROMPT · PLAYABLE OUTPUT</span>
-      <h1>从创意到可玩的<br />完整游戏工程。</h1>
-      <p>
-        Ludora 将你的灵感交给 Codex，在受控项目目录中完成策划、实现、审查与持续验证。
-      </p>
-      <button className="hero-button" type="button" onClick={onCreate}>
-        <Sparkles size={16} /> 创建游戏 <ArrowRight size={15} />
-      </button>
-      <dl className="home-metrics">
-        <div><dt>PIPELINE</dt><dd>8 个制作阶段</dd></div>
-        <div><dt>RUNTIME</dt><dd>{runtime.state === 'ready' ? 'Codex 已就绪' : '需要检查'}</dd></div>
-        <div><dt>MEDIA</dt><dd>{runtime.capabilities.imageGeneration || runtime.capabilities.externalImageGeneration ? '图片 · 音频 · 3D' : '音频 · 3D'}</dd></div>
-        <div><dt>PROJECTS</dt><dd>{projectCount} 个本地项目</dd></div>
-      </dl>
-    </section>
   );
 }
 
